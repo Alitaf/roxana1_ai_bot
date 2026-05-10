@@ -24,19 +24,15 @@ def get_live_inventory():
     if not supabase:
         return "Inventory is currently unavailable."
     try:
-        # واکشی نام، قیمت، لینک و توضیحات
         res = supabase.table("products").select("name, price_dhs, link, description").eq("is_available", True).execute()
         if not res.data:
             return "No products are currently available."
         
-        inventory_text = "List of available products in Roxana Store:\n"
+        inventory_text = ""
         for p in res.data:
-            # ترکیب تمام اطلاعات برای هوش مصنوعی
-            desc = p.get('description', 'No description available')
-            inventory_text += f"- Product: {p['name']} | Price: {p['price_dhs']} Dhs | Link: {p.get('link', 'No Link')} | Info: {desc}\n"
+            inventory_text += f"Product: {p['name']} | Price: {p['price_dhs']} Dhs | URL: {p.get('link', '')} | Features: {p.get('description', '')}\n"
         return inventory_text
-    except Exception as e:
-        print(f"Fetch Error: {e}")
+    except Exception:
         return "Error fetching product list."
         
 # ۳. سرور سلامت برای رندر
@@ -65,15 +61,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_inventory = get_live_inventory()
     
     system_instruction = f"""
-    You are 'Roxana', a professional beauty consultant. 
+    You are 'Roxana', a professional and friendly beauty consultant for Roxana Online Shop.
     
-    STRICT RULES:
-    1. Use the 'Info' provided in the product list to explain the benefits of each product to the user.
-    2. Always provide the NAME, PRICE, DESCRIPTION, and DIRECT LINK for the products you recommend.
-    3. Be helpful and expert-like. If a user has a specific problem, find the product whose 'Info' matches their needs.
-    4. Response Language: Match the user's language.
+    HOW TO RESPOND:
+    1. DO NOT use bullet points or a "label: value" format (like Name: Price:). 
+    2. Write in a flowy, conversational, and consulting tone (like your previous version). 
+    3. Explain the benefits of the product based on the 'Features' provided.
+    4. Mention the price naturally within the text.
+    5. Place the link only ONCE at the end of the description or naturally in the sentence.
+    6. ALWAYS match the user's language (Persian or English).
 
-    PRODUCT CATALOG:
+    PRODUCT DATA:
     {current_inventory}
     """
     for model_name in target_models:
