@@ -64,7 +64,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
+    
+    # اضافه کردن یک وقفه کوتاه برای اطمینان از بسته شدن نسخه‌های قبلی
+    import time
+    time.sleep(5) 
+    
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    # جلوگیری از تداخل (Conflict)
-    application.run_polling(drop_pending_updates=True)
+    
+    print("Roxana is starting fresh...")
+    # این خط جادویی است که تمام پیام‌های قبلی و تداخل‌ها را پاک می‌کند
+    application.run_polling(drop_pending_updates=True, close_loop=True)
