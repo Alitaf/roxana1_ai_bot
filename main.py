@@ -38,6 +38,12 @@ def get_current_inventory():
 # ۴. پردازش پیام‌ها
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text: return
+
+    # اضافه کردن این خط برای تست
+    print(f"Message received: {update.message.text}")
+    
+    # ارسال یک پیام ساده برای تست زنده
+    await update.message.reply_text("I'm thinking... please wait.")
     
     user_text = update.message.text
     inventory = get_current_inventory()
