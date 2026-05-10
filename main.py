@@ -34,10 +34,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         inventory = get_inventory()
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent?key={GEMINI_API_KEY}"
         
         payload = {
-            "contents": [{"parts": [{"text": f"You are Roxana, a store assistant. Inventory: {inventory}. Answer in Persian: {user_text}"}]}]
+            "contents": [{
+                "parts": [{"text": f"You are Roxana, a helpful assistant. Inventory: {inventory}. Answer in Persian: {user_text}"}]
+            }]
         }
         
         response = requests.post(url, json=payload, timeout=15)
