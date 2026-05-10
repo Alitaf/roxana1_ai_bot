@@ -24,20 +24,21 @@ def get_live_inventory():
     if not supabase:
         return "Inventory is currently unavailable."
     try:
-        # واکشی ستون‌های نام، قیمت و لینک
-        res = supabase.table("products").select("name, price_dhs, link").eq("is_available", True).execute()
+        # واکشی نام، قیمت، لینک و توضیحات
+        res = supabase.table("products").select("name, price_dhs, link, description").eq("is_available", True).execute()
         if not res.data:
             return "No products are currently available."
         
         inventory_text = "List of available products in Roxana Store:\n"
         for p in res.data:
-            # اضافه کردن لینک به متن موجودی
-            inventory_text += f"- {p['name']} | Price: {p['price_dhs']} Dhs | Link: {p.get('link', 'No Link')}\n"
+            # ترکیب تمام اطلاعات برای هوش مصنوعی
+            desc = p.get('description', 'No description available')
+            inventory_text += f"- Product: {p['name']} | Price: {p['price_dhs']} Dhs | Link: {p.get('link', 'No Link')} | Info: {desc}\n"
         return inventory_text
     except Exception as e:
         print(f"Fetch Error: {e}")
         return "Error fetching product list."
-
+        
 # ۳. سرور سلامت برای رندر
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -60,19 +61,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_models = ['models/gemini-3.1-flash-lite', 'models/gemini-2.0-flash', 'models/gemini-1.5-flash']
     
     # گرفتن موجودی زنده
+    # در داخل تابع handle_message
     current_inventory = get_live_inventory()
     
-    # دستورالعمل هوشمند شما (بدون تغییر در ساختار موفق)
     system_instruction = f"""
-    You are 'Roxana', the beauty consultant for Roxana Online Shop.
+    You are 'Roxana', a professional beauty consultant. 
     
     STRICT RULES:
-    1. ONLY use the product information provided below.
-    2. LANGUAGE MATCHING: Respond in the SAME language as the user.
-    3. IMPORTANT: Always provide the DIRECT LINK for every product you mention.
-    4. If the user asks for a recommendation, give the name, price, and the link clearly.
+    1. Use the 'Info' provided in the product list to explain the benefits of each product to the user.
+    2. Always provide the NAME, PRICE, DESCRIPTION, and DIRECT LINK for the products you recommend.
+    3. Be helpful and expert-like. If a user has a specific problem, find the product whose 'Info' matches their needs.
+    4. Response Language: Match the user's language.
 
-    PRODUCT LIST WITH LINKS:
+    PRODUCT CATALOG:
     {current_inventory}
     """
     for model_name in target_models:
