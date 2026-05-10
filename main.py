@@ -37,9 +37,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         payload = {
-            "contents": [{
-                "parts": [{"text": f"You are Roxana, a professional store assistant. Use this inventory: {inventory}. Answer the customer in Persian: {user_text}"}]
-            }]
+            "contents": [{"parts": [{"text": f"You are Roxana, a store assistant. Inventory: {inventory}. Answer in Persian: {user_text}"}]}]
         }
         
         response = requests.post(url, json=payload, timeout=15)
