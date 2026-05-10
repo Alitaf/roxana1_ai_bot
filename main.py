@@ -24,13 +24,15 @@ def get_live_inventory():
     if not supabase:
         return "Inventory is currently unavailable."
     try:
-        res = supabase.table("products").select("*").eq("is_available", True).execute()
+        # واکشی ستون‌های نام، قیمت و لینک
+        res = supabase.table("products").select("name, price_dhs, link").eq("is_available", True).execute()
         if not res.data:
-            return "No products are currently available in the catalog."
+            return "No products are currently available."
         
         inventory_text = "List of available products in Roxana Store:\n"
         for p in res.data:
-            inventory_text += f"- {p['name']} - Price: {p['price_dhs']} Dhs\n"
+            # اضافه کردن لینک به متن موجودی
+            inventory_text += f"- {p['name']} | Price: {p['price_dhs']} Dhs | Link: {p.get('link', 'No Link')}\n"
         return inventory_text
     except Exception as e:
         print(f"Fetch Error: {e}")
@@ -62,18 +64,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # دستورالعمل هوشمند شما (بدون تغییر در ساختار موفق)
     system_instruction = f"""
-    You are 'Roxana', the EXCLUSIVE beauty consultant for Roxana Online Shop.
+    You are 'Roxana', the beauty consultant for Roxana Online Shop.
     
     STRICT RULES:
-    1. ONLY use the product information provided in the list below. Do not invent products.
-    2. LANGUAGE MATCHING: Always respond in the SAME language that the user uses.
-    3. If a product is NOT in the list, politely inform the user.
-    4. Keep the tone professional and friendly.
+    1. ONLY use the product information provided below.
+    2. LANGUAGE MATCHING: Respond in the SAME language as the user.
+    3. IMPORTANT: Always provide the DIRECT LINK for every product you mention.
+    4. If the user asks for a recommendation, give the name, price, and the link clearly.
 
-    PRODUCT LIST:
+    PRODUCT LIST WITH LINKS:
     {current_inventory}
     """
-
     for model_name in target_models:
         try:
             model = genai.GenerativeModel(model_name)
