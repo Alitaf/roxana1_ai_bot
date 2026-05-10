@@ -1,88 +1,106 @@
-import os, threading, google.generativeai as genai
+import os
+import threading
+import google.generativeai as genai
+from flask import Flask
 from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from supabase import create_client, Client
 
-# ۱. تنظیمات اولیه و اتصال به سرویس‌ها
-genai.configure(api_key=os.getenv("GEMINI_KEY"))
-supabase_url = os.getenv("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY")
-supabase: Client = create_client(supabase_url, supabase_key)
+# --- تنظیمات اولیه ---
+app = Flask('')
 
-# ۲. سرور سلامت برای رندر
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200); self.end_headers()
-        self.wfile.write(b"Roxana Bot is Live")
+@app.route('/')
+def home():
+    return "Roxana Bot is Live!"
 
-def run_health_check():
-    server = HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 10000))), HealthCheckHandler)
-    server.serve_forever()
+def run_flask():
+    app.run(host='0.0.0.0', port=10000)
 
-# ۳. دریافت هوشمند لیست محصولات از دیتابیس
+# --- اتصال به سرویس‌ها ---
+# دریافت متغیرهای محیطی از Render
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+# بررسی وجود متغیرها برای جلوگیری از کرش کردن
+if not all([SUPABASE_URL, SUPABASE_KEY, TELEGRAM_TOKEN, GEMINI_API_KEY]):
+    print("ERROR: One or more Environment Variables are missing!")
+
+# اتصال به سوپابیس
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# تنظیمات جمنای
+genai.configure(api_key=GEMINI_API_KEY)
+system_instruction = """
+You are Roxana, a professional and friendly assistant for 'Roxana Store'.
+Your task is to help customers based on the available inventory provided to you.
+- Always be polite and speak in Persian (Farsi).
+- Use the provided inventory to answer questions about price, availability, and details.
+- If a product is not in the inventory, kindly say we don't have it yet.
+"""
+
+# --- توابع کمکی ---
 def get_current_inventory():
     try:
+        # دریافت محصولاتی که موجود هستند
         response = supabase.table("products").select("*").eq("is_available", True).execute()
         items = response.data
-        print(f"DEBUG: Found {len(items)} products in database.") # این خط مهم است
+        print(f"DEBUG: Found {len(items)} products in database.")
         
-        if not items: 
-            return "No products available in database."
+        if not items:
+            return "در حال حاضر محصولی در لیست موجودی یافت نشد."
         
-        inventory_text = "Roxana Store Product List:\n"
+        inventory_text = "لیست محصولات موجود در فروشگاه رکسانا:\n"
         for p in items:
-            inventory_text += f"- {p['name']}: {p['description']} | Price: {p['price_dhs']} AED | Link: {p['link']}\n"
+            inventory_text += f"- {p['name']}: {p['description']} | قیمت: {p['price_dhs']} درهم | لینک: {p['link']}\n"
         return inventory_text
     except Exception as e:
         print(f"Database Error: {e}")
-        return "Error fetching inventory."
+        return "خطا در دریافت اطلاعات از دیتابیس."
 
-# ۴. پردازش پیام‌ها
+# --- هندلرهای تلگرام ---
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("سلام! من رکسانا هستم، دستیار هوشمند فروشگاه شما. چطور می‌تونم کمکتون کنم؟")
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text: return
-
-    # اضافه کردن این خط برای تست
-    print(f"Message received: {update.message.text}")
-    
-    # ارسال یک پیام ساده برای تست زنده
-    await update.message.reply_text("I'm thinking... please wait.")
-
     user_text = update.message.text
-    inventory = get_current_inventory()
-    
-    system_instruction = f"""
-    You are 'Roxana', the exclusive beauty consultant for Roxana Online Shop in Dubai.
-    
-    STRICT RULES:
-    1. USE ONLY this product list: {inventory}
-    2. Respond in the SAME language as the user (Persian, English, or Arabic).
-    3. If a product is not in the list, politely say we don't have it yet.
-    4. Provide the product link for every recommendation.
-    5. No general advice outside our products.
-    """
+    if not user_text: return
 
-    target_models = ['models/gemini-1.5-flash', 'models/gemini-2.0-flash']
-    
-    for model_name in target_models:
-        try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(f"{system_instruction}\n\nUser Question: {user_text}")
-            if response and response.text:
-                await update.message.reply_text(response.text)
-                return 
-        except Exception: continue
+    # ارسال پیام وضعیت اولیه
+    status_msg = await update.message.reply_text("⏳ در حال بررسی موجودی و پاسخگویی...")
 
-async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Please send your question in text format so I can assist you better.\nلطفاً سوال خود را به صورت متنی بفرستید.")
+    try:
+        # ۱. دریافت موجودی لحظه‌ای
+        inventory = get_current_inventory()
+        
+        # ۲. تلاش برای تولید پاسخ با مدل Flash (پایدارترین مدل برای Render)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        full_prompt = f"{system_instruction}\n\nInventory:\n{inventory}\n\nCustomer Question: {user_text}"
+        
+        response = model.generate_content(full_prompt)
+        
+        if response and response.text:
+            # حذف پیام "در حال بررسی" و ارسال پاسخ اصلی
+            await status_msg.delete()
+            await update.message.reply_text(response.text)
+        else:
+            await status_msg.edit_text("❌ متأسفانه پاسخی دریافت نشد. لطفا دوباره سوال کنید.")
+            
+    except Exception as e:
+        print(f"General Error: {e}")
+        await status_msg.edit_text(f"❌ پوزش می‌طلبم، مشکلی پیش آمده: {str(e)}")
 
-# ۵. اجرای اصلی
+# --- اجرای برنامه ---
 if __name__ == '__main__':
-    threading.Thread(target=run_health_check, daemon=True).start()
-    app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+    # اجرای Flask در یک ترد جداگانه برای Health Check رندر
+    threading.Thread(target=run_flask).start()
     
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    # اجرای ربات تلگرام
+    print("Bot is starting...")
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
     
-    print("Bot is running...")
-    app.run_polling(drop_pending_updates=True)
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    application.run_polling()
