@@ -25,9 +25,12 @@ def get_current_inventory():
     try:
         response = supabase.table("products").select("*").eq("is_available", True).execute()
         items = response.data
-        if not items: return "Currently, no products are available in our database."
+        print(f"DEBUG: Found {len(items)} products in database.") # این خط مهم است
         
-        inventory_text = "Roxana Store Product List (ONLY suggest these):\n"
+        if not items: 
+            return "No products available in database."
+        
+        inventory_text = "Roxana Store Product List:\n"
         for p in items:
             inventory_text += f"- {p['name']}: {p['description']} | Price: {p['price_dhs']} AED | Link: {p['link']}\n"
         return inventory_text
@@ -39,12 +42,6 @@ def get_current_inventory():
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text: return
 
-    # اضافه کردن این خط برای تست
-    print(f"Message received: {update.message.text}")
-    
-    # ارسال یک پیام ساده برای تست زنده
-    await update.message.reply_text("I'm thinking... please wait.")
-    
     user_text = update.message.text
     inventory = get_current_inventory()
     
