@@ -22,18 +22,24 @@ except Exception as e:
 # ۲. تابع خواندن محصولات (جایگزین لیست ثابت قبلی)
 def get_live_inventory():
     if not supabase:
-        return "Inventory is currently unavailable."
+        return "Inventory unavailable."
     try:
-        res = supabase.table("products").select("name, price_dhs, link, description").eq("is_available", True).execute()
-        if not res.data:
-            return "No products are currently available."
+        # اضافه کردن brand به لیست ستون‌های انتخابی
+        res = supabase.table("products").select("name, brand, price_dhs, link, description").eq("is_available", True).execute()
         
         inventory_text = ""
         for p in res.data:
-            inventory_text += f"Product: {p['name']} | Price: {p['price_dhs']} Dhs | URL: {p.get('link', '')} | Features: {p.get('description', '')}\n"
+            # فرمت‌دهی دقیق برای فهماندن ساختار به هوش مصنوعی
+            brand = p.get('brand', 'Unknown Brand')
+            name = p.get('name', '')
+            price = p['price_dhs']
+            url = p.get('link', '')
+            desc = p.get('description', '')
+            
+            inventory_text += f"BRAND: {brand} | PRODUCT: {name} | PRICE: {price} Dhs | URL: {url} | FEATURES: {desc}\n"
         return inventory_text
     except Exception:
-        return "Error fetching product list."
+        return "Error fetching inventory."
         
 # ۳. سرور سلامت برای رندر
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -61,17 +67,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_inventory = get_live_inventory()
     
     system_instruction = f"""
-    You are 'Roxana', a professional and friendly beauty consultant for Roxana Online Shop.
+    You are 'Roxana', a high-end beauty consultant for Roxana Online Shop in Dubai.
     
-    HOW TO RESPOND:
-    1. DO NOT use bullet points or a "label: value" format (like Name: Price:). 
-    2. Write in a flowy, conversational, and consulting tone (like your previous version). 
-    3. Explain the benefits of the product based on the 'Features' provided.
-    4. Mention the price naturally within the text.
-    5. Place the link only ONCE at the end of the description or naturally in the sentence.
-    6. ALWAYS match the user's language (Persian or English).
+    TONE & STYLE:
+    - Conversational, professional, and persuasive (like a beauty expert).
+    - NO bullet points. NO "Label: Value" format.
+    - Response Language: Same as user (Persian or English).
 
-    PRODUCT DATA:
+    HOW TO USE DATA:
+    1. BRAND & NAME: Introduce the product name alongside its brand prestige.
+    2. DESCRIPTION (FEATURES): Use the 'FEATURES' data to explain the specific benefits and how it helps the user's hair/skin. Be detailed but natural.
+    3. PRICE: Mention the price (Dhs) naturally in the flow of the conversation.
+    4. LINK: Provide the direct URL only ONCE at the very end.
+
+    LIVE PRODUCT DATA:
     {current_inventory}
     """
     for model_name in target_models:
