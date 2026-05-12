@@ -56,23 +56,10 @@ def run_health_check():
 genai.configure(api_key=GEMINI_KEY)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    #if not update.message or not update.message.text: return
-    #user_text = update.message.text
+    if not update.message or not update.message.text: return
+    user_text = update.message.text
 
-    # چک کردن اینکه پیام متن است یا ویس
-    user_content = None
-    
-    if update.message.text:
-        user_content = update.message.text
-    elif update.message.voice:
-        # دانلود فایل ویس
-        voice_file = await context.bot.get_file(update.message.voice.file_id)
-        voice_path = "user_voice.ogg"
-        await voice_file.download_to_drive(voice_path)
         
-        # آپلود برای Gemini (مدل‌های لیست شما قابلیت Multi-modal دارند)
-        user_content = genai.upload_file(path=voice_path, mime_type="audio/ogg")
-    
     if not user_content: return
     
     # مدل‌های دقیق برنامه قبلی شما
@@ -104,7 +91,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for model_name in target_models:
         try:
             model = genai.GenerativeModel(model_name)
-            response = model.generate_content(f"{system_instruction}\n\nسوال کاربر: {user_contect}")
+            response = model.generate_content(f"{system_instruction}\n\nسوال کاربر: {user_text}")
             
             if response and response.text:
                 await update.message.reply_text(response.text)
@@ -115,17 +102,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("🔴 مشکلی در پردازش پیش آمد، لطفاً دوباره بپرسید.")
 
-async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "لطفاً سوال خود را به صورت متنی ارسال کنید تا رکسانا بتواند شما را راهنمایی کند.\n\n"
-        "Please send your question in text format so Roxana can assist you."
-    )
-    await update.message.reply_text(text)
+
 
 if __name__ == '__main__':
     threading.Thread(target=run_health_check, daemon=True).start()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    
     print("Roxana is starting with Supabase...")
     app.run_polling(drop_pending_updates=True)
