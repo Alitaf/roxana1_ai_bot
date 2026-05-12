@@ -99,6 +99,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("🔴 مشکلی در پردازش پیش آمد، لطفاً دوباره بپرسید.")
 
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "لطفاً سوال خود را به صورت متنی ارسال کنید تا رکسانا بتواند شما را راهنمایی کند.\n\n"
+        "Please send your question in text format so Roxana can assist you."
+    )
+    await update.message.reply_text(text)
+
 if __name__ == '__main__':
     threading.Thread(target=run_health_check, daemon=True).start()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
