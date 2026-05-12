@@ -126,5 +126,6 @@ if __name__ == '__main__':
     threading.Thread(target=run_health_check, daemon=True).start()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     print("Roxana is starting with Supabase...")
     app.run_polling(drop_pending_updates=True)
