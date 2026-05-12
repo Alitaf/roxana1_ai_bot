@@ -58,9 +58,6 @@ genai.configure(api_key=GEMINI_KEY)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text: return
     user_text = update.message.text
-
-        
-    if not user_content: return
     
     # مدل‌های دقیق برنامه قبلی شما
     target_models = ['models/gemini-3.1-flash-lite', 'models/gemini-2.0-flash', 'models/gemini-1.5-flash']
@@ -108,6 +105,5 @@ if __name__ == '__main__':
     threading.Thread(target=run_health_check, daemon=True).start()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    
     print("Roxana is starting with Supabase...")
     app.run_polling(drop_pending_updates=True)
