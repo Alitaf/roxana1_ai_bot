@@ -104,7 +104,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for model_name in target_models:
         try:
             model = genai.GenerativeModel(model_name)
-            response = model.generate_content(f"{system_instruction}\n\nسوال کاربر: {user_text}")
+            response = model.generate_content(f"{system_instruction}\n\nسوال کاربر: {user_contect}")
             
             if response and response.text:
                 await update.message.reply_text(response.text)
