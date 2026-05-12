@@ -56,8 +56,24 @@ def run_health_check():
 genai.configure(api_key=GEMINI_KEY)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text: return
-    user_text = update.message.text
+    #if not update.message or not update.message.text: return
+    #user_text = update.message.text
+
+    # چک کردن اینکه پیام متن است یا ویس
+    user_content = None
+    
+    if update.message.text:
+        user_content = update.message.text
+    elif update.message.voice:
+        # دانلود فایل ویس
+        voice_file = await context.bot.get_file(update.message.voice.file_id)
+        voice_path = "user_voice.ogg"
+        await voice_file.download_to_drive(voice_path)
+        
+        # آپلود برای Gemini (مدل‌های لیست شما قابلیت Multi-modal دارند)
+        user_content = genai.upload_file(path=voice_path, mime_type="audio/ogg")
+    
+    if not user_content: return
     
     # مدل‌های دقیق برنامه قبلی شما
     target_models = ['models/gemini-3.1-flash-lite', 'models/gemini-2.0-flash', 'models/gemini-1.5-flash']
